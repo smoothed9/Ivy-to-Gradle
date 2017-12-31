@@ -1,0 +1,80 @@
+import groovy.xml.DOMBuilder
+import org.w3c.dom.Document
+import org.w3c.dom.NamedNodeMap
+import org.w3c.dom.NodeList
+import org.w3c.dom.Node
+
+task ivyToGradle {
+	def confMap = new HashMap<String, String>()
+	confMap.put ("test", "testCompile")
+	
+	def gradleFile = file "build.gradle"
+	delete gradleFile
+	
+	gradleFile << '''plugins {
+	id 'java'
+	id 'eclipse'
+	} \n\n'''
+	
+	def ivyFile = file "ivy.xml"
+	ivyFile.withReader { reader ->
+		Document doc = DOMBuilder.parse(reader)
+		
+		Collection depCollection = doc.getElementsByTagName("dependency").collect()
+		
+		gradleFile << "dependencies { \n"
+		
+		depCollection.each { Node depNode ->
+			if(depNode.getNodeType() == Node.ELEMENT_NODE) {
+				NamedNodeMap attrMap = depNode.getAttributes()
+				def depOrg = attrMap.getNamedItem("org").getNodeValue()
+				def depName = attrMap.getNamedItem("name").getNodeValue()
+				def depVer = attrMap.getNamedItem("rev").getNodeValue()
+				def depConf
+				def targetConf
+				if(attrMap.getNamedItem("conf") != null) { 
+				// Assuming that the conf is always present
+					def confVal = attrMap.getNamedItem("conf").getNodeValue()
+					def sourceConf
+				
+					/*
+						Ivy supports the use of source and target confs when using an Ivy Repository.
+						When using a Maven repository, only source conf is used		
+					*/
+					if (confVal.contains("->")){
+						sourceConf = confVal.substring(0, confVal.indexOf("-"))
+						targetConf = confVal.substring(confVal.indexOf(">")+1)
+					} else {
+						sourceConf = confVal
+					}
+					
+					/*
+						Ivy allows custom configurations which are not supported by default in Gradle.
+						This map is used to map the Ivy conf to Gradle conf. Alternately, we can declare
+						custom configurations in Gradle also. But if the artifact is being published to
+						a Maven repository, it is better to stick with standard Maven supported configurations
+					*/ 
+					if (confMap.get(sourceConf) != null) {
+						depConf = confMap.get(sourceConf)
+					} else {
+						depConf = sourceConf
+					}
+					
+				}
+				
+				gradleFile << "\t $depConf '$depOrg:$depName:$depVer"
+				if (targetConf == null){
+					gradleFile << "'\n"
+				} else {
+					gradleFile << ":$targetConf'\n"
+				}
+			}
+		}
+		gradleFile << "}"
+	}
+}
+
+task executeIvyToGradle {
+	mustRunAfter ivyToGradle
+	wrapper.execute()
+}
