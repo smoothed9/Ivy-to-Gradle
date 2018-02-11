@@ -30,22 +30,31 @@ task ivyToGradle {
 				def depOrg = attrMap.getNamedItem("org").getNodeValue()
 				def depName = attrMap.getNamedItem("name").getNodeValue()
 				def depVer = attrMap.getNamedItem("rev").getNodeValue()
-				def depConf
+				def depConf = [] as java.util.ArrayList
 				def targetConf
 				if(attrMap.getNamedItem("conf") != null) { 
 				// Assuming that the conf is always present
 					def confVal = attrMap.getNamedItem("conf").getNodeValue()
-					def sourceConf
+					def sourceConf = [] as java.util.ArrayList
 				
 					/*
 						Ivy supports the use of source and target confs when using an Ivy Repository.
 						When using a Maven repository, only source conf is used		
 					*/
 					if (confVal.contains("->")){
-						sourceConf = confVal.substring(0, confVal.indexOf("-"))
+						//If source conf contains more than one, split them
+						if (confVal.substring(0, confVal.indexOf("-")).contains(",")) {
+							sourceConf = confVal.substring(0, confVal.indexOf("-")).split(",")
+						} else {
+							sourceConf[0] = confVal.substring(0, confVal.indexOf("-"))
+						}
 						targetConf = confVal.substring(confVal.indexOf(">")+1)
 					} else {
-						sourceConf = confVal
+						if(confVal.contains(",")){
+							sourceConf = confVal.split(",")
+						} else {
+							sourceConf[0] = confVal
+						}
 					}
 					
 					/*
@@ -54,19 +63,22 @@ task ivyToGradle {
 						custom configurations in Gradle also. But if the artifact is being published to
 						a Maven repository, it is better to stick with standard Maven supported configurations
 					*/ 
-					if (confMap.get(sourceConf) != null) {
-						depConf = confMap.get(sourceConf)
-					} else {
-						depConf = sourceConf
+					sourceConf.each { String sourceConfEntry ->
+						if (confMap.get(sourceConfEntry) != null) {
+							depConf.add(confMap.get(sourceConfEntry))
+						} else {
+							depConf.add(sourceConfEntry)
+						}
 					}
 					
 				}
-				
-				gradleFile << "\t $depConf '$depOrg:$depName:$depVer"
-				if (targetConf == null){
-					gradleFile << "'\n"
-				} else {
-					gradleFile << ":$targetConf'\n"
+				depConf.each { String depConfEntry ->
+					gradleFile << "\t $depConfEntry '$depOrg:$depName:$depVer"
+					if (targetConf == null){
+						gradleFile << "'\n"
+					} else {
+						gradleFile << ":$targetConf'\n"
+					}
 				}
 			}
 		}
