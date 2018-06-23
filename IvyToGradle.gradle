@@ -7,6 +7,11 @@ import org.w3c.dom.Node
 task ivyToGradle {
 	def confMap = new HashMap<String, String>()
 	confMap.put ("test", "testCompile")
+	/*
+		"master" is not a conf available in Gradle Java Plugin. Hence mapping
+		master to compileOnly
+	 */
+	confMap.put ("master", "compileOnly")
 	
 	def gradleFile = file "build.gradle"
 	delete gradleFile
@@ -14,7 +19,11 @@ task ivyToGradle {
 	gradleFile << '''plugins {
 	id 'java'
 	id 'eclipse'
-	} \n\n'''
+}
+
+repositories{
+	mavenCentral()
+}\n\n'''
 	
 	def ivyFile = file "ivy.xml"
 	ivyFile.withReader { reader ->

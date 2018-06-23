@@ -1,0 +1,16 @@
+plugins {
+	id 'java'
+	id 'eclipse'
+}
+
+repositories{
+	mavenCentral()
+}
+
+dependencies { 
+	 compileOnly 'org.apache.ivy.example:version:latest.integration:default'
+	 compileOnly 'org.apache.ivy.example:list:latest.integration'
+	 compileOnly 'commons-collections:commons-collections:3.1:default'
+	 compileOnly 'commons-cli:commons-cli:1.0:default'
+	 testCompile 'junit:junit:4.11'
+}
